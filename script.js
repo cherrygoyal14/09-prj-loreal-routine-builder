@@ -5,11 +5,11 @@ let chatHistory = [];
 
 /* ---------------- DOM REFERENCES ---------------- */
 const categoryFilter = document.getElementById("categoryFilter");
-const productsContainer = document.getElementById("product-grid");
-const selectedContainer = document.getElementById("selected-products");
+const productsContainer = document.getElementById("productsContainer");
+const selectedContainer = document.getElementById("selectedProductsList");
 const chatForm = document.getElementById("chatForm");
-const chatWindow = document.getElementById("chat-box");
-const generateBtn = document.getElementById("generate-btn");
+const chatWindow = document.getElementById("chatWindow");
+const generateBtn = document.getElementById("generateRoutine");
 
 /* ---------------- LOAD PRODUCTS ---------------- */
 async function loadProducts() {
@@ -32,7 +32,6 @@ function displayProducts(products) {
       <p>${product.brand}</p>
     `;
 
-    /* SELECT / UNSELECT */
     card.addEventListener("click", () => {
       const exists = selectedProducts.find((p) => p.name === product.name);
 
@@ -67,9 +66,7 @@ function displayProducts(products) {
 /* ---------------- FILTER ---------------- */
 categoryFilter.addEventListener("change", () => {
   const category = categoryFilter.value;
-
   const filtered = allProducts.filter((p) => p.category === category);
-
   displayProducts(filtered);
 });
 
@@ -106,18 +103,33 @@ function saveProducts() {
 
 function loadSavedProducts() {
   const saved = JSON.parse(localStorage.getItem("products"));
-
   if (saved) {
     selectedProducts = saved;
     updateSelectedUI();
   }
 }
 
+/* ---------------- FORMAT AI RESPONSE ---------------- */
+function formatAIResponse(text) {
+  return text
+    .replace(/### (.*?)/g, "<h3>$1</h3>")
+    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\n/g, "<br>");
+}
+
 /* ---------------- CHAT UI ---------------- */
 function addMessage(sender, text) {
   const msg = document.createElement("div");
-  msg.innerText = `${sender}: ${text}`;
+  msg.classList.add("chat-message");
+
+  if (sender === "AI") {
+    msg.innerHTML = `<strong>${sender}:</strong> ${formatAIResponse(text)}`;
+  } else {
+    msg.innerText = `${sender}: ${text}`;
+  }
+
   chatWindow.appendChild(msg);
+  chatWindow.scrollTop = chatWindow.scrollHeight;
 }
 
 /* ---------------- GENERATE ROUTINE ---------------- */
@@ -155,24 +167,29 @@ generateBtn.addEventListener("click", async () => {
 chatForm.addEventListener("submit", async (e) => {
   e.preventDefault();
 
-  const input = document.getElementById("chat-input");
+  const input = document.getElementById("userInput");
   const text = input.value;
+
+  addMessage("You", text);
 
   chatHistory.push({
     role: "user",
     content: text,
   });
 
-  const res = await fetch("YOUR_WORKER_URL", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
+  const res = await fetch(
+    "https://restless-sea-2426.cgoyal6-910.workers.dev/",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        message: text,
+        history: chatHistory,
+      }),
     },
-    body: JSON.stringify({
-      message: text,
-      history: chatHistory,
-    }),
-  });
+  );
 
   const data = await res.json();
 
