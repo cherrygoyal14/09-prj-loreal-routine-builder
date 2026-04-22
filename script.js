@@ -127,16 +127,19 @@ generateBtn.addEventListener("click", async () => {
     return;
   }
 
-  const res = await fetch("YOUR_WORKER_URL", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
+  const res = await fetch(
+    "https://restless-sea-2426.cgoyal6-910.workers.dev/",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        products: selectedProducts,
+        history: chatHistory,
+      }),
     },
-    body: JSON.stringify({
-      products: selectedProducts,
-      history: chatHistory,
-    }),
-  });
+  );
 
   const data = await res.json();
 
