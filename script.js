@@ -1,57 +1,199 @@
-/* Get references to DOM elements */
+/* ---------------- GLOBAL STATE ---------------- */
+let allProducts = [];
+let selectedProducts = [];
+let chatHistory = [];
+
+/* ---------------- DOM REFERENCES ---------------- */
 const categoryFilter = document.getElementById("categoryFilter");
-const productsContainer = document.getElementById("productsContainer");
+const productsContainer = document.getElementById("product-grid");
+const selectedContainer = document.getElementById("selected-products");
 const chatForm = document.getElementById("chatForm");
-const chatWindow = document.getElementById("chatWindow");
+const chatWindow = document.getElementById("chat-box");
+const generateBtn = document.getElementById("generate-btn");
 
-/* Show initial placeholder until user selects a category */
-productsContainer.innerHTML = `
-  <div class="placeholder-message">
-    Select a category to view products
-  </div>
-`;
-
-/* Load product data from JSON file */
+/* ---------------- LOAD PRODUCTS ---------------- */
 async function loadProducts() {
-  const response = await fetch("products.json");
-  const data = await response.json();
-  return data.products;
+  const res = await fetch("products.json");
+  const data = await res.json();
+  allProducts = data.products;
 }
 
-/* Create HTML for displaying product cards */
+/* ---------------- DISPLAY PRODUCTS ---------------- */
 function displayProducts(products) {
-  productsContainer.innerHTML = products
-    .map(
-      (product) => `
-    <div class="product-card">
+  productsContainer.innerHTML = "";
+
+  products.forEach((product) => {
+    const card = document.createElement("div");
+    card.className = "product-card";
+
+    card.innerHTML = `
       <img src="${product.image}" alt="${product.name}">
-      <div class="product-info">
-        <h3>${product.name}</h3>
-        <p>${product.brand}</p>
-      </div>
-    </div>
-  `
-    )
-    .join("");
+      <h3>${product.name}</h3>
+      <p>${product.brand}</p>
+    `;
+
+    /* SELECT / UNSELECT */
+    card.addEventListener("click", () => {
+      const exists = selectedProducts.find((p) => p.name === product.name);
+
+      if (exists) {
+        selectedProducts = selectedProducts.filter(
+          (p) => p.name !== product.name,
+        );
+        card.classList.remove("selected");
+      } else {
+        selectedProducts.push(product);
+        card.classList.add("selected");
+      }
+
+      saveProducts();
+      updateSelectedUI();
+    });
+
+    /* DESCRIPTION ON HOVER */
+    const desc = document.createElement("p");
+    desc.innerText = product.description;
+    desc.style.display = "none";
+
+    card.appendChild(desc);
+
+    card.onmouseenter = () => (desc.style.display = "block");
+    card.onmouseleave = () => (desc.style.display = "none");
+
+    productsContainer.appendChild(card);
+  });
 }
 
-/* Filter and display products when category changes */
-categoryFilter.addEventListener("change", async (e) => {
-  const products = await loadProducts();
-  const selectedCategory = e.target.value;
+/* ---------------- FILTER ---------------- */
+categoryFilter.addEventListener("change", () => {
+  const category = categoryFilter.value;
 
-  /* filter() creates a new array containing only products 
-     where the category matches what the user selected */
-  const filteredProducts = products.filter(
-    (product) => product.category === selectedCategory
-  );
+  const filtered = allProducts.filter((p) => p.category === category);
 
-  displayProducts(filteredProducts);
+  displayProducts(filtered);
 });
 
-/* Chat form submission handler - placeholder for OpenAI integration */
-chatForm.addEventListener("submit", (e) => {
+/* ---------------- SELECTED PRODUCTS UI ---------------- */
+function updateSelectedUI() {
+  selectedContainer.innerHTML = "";
+
+  selectedProducts.forEach((product) => {
+    const div = document.createElement("div");
+    div.className = "selected-item";
+
+    div.innerText = product.name;
+
+    const btn = document.createElement("button");
+    btn.innerText = "Remove";
+
+    btn.onclick = () => {
+      selectedProducts = selectedProducts.filter(
+        (p) => p.name !== product.name,
+      );
+      saveProducts();
+      updateSelectedUI();
+    };
+
+    div.appendChild(btn);
+    selectedContainer.appendChild(div);
+  });
+}
+
+/* ---------------- LOCAL STORAGE ---------------- */
+function saveProducts() {
+  localStorage.setItem("products", JSON.stringify(selectedProducts));
+}
+
+function loadSavedProducts() {
+  const saved = JSON.parse(localStorage.getItem("products"));
+
+  if (saved) {
+    selectedProducts = saved;
+    updateSelectedUI();
+  }
+}
+
+/* ---------------- CHAT UI ---------------- */
+function addMessage(sender, text) {
+  const msg = document.createElement("div");
+  msg.innerText = `${sender}: ${text}`;
+  chatWindow.appendChild(msg);
+}
+
+/* ---------------- GENERATE ROUTINE ---------------- */
+generateBtn.addEventListener("click", async () => {
+  if (selectedProducts.length === 0) {
+    alert("Select products first");
+    return;
+  }
+
+  const res = await fetch("YOUR_WORKER_URL", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      products: selectedProducts,
+      history: chatHistory,
+    }),
+  });
+
+  const data = await res.json();
+
+  chatHistory.push({
+    role: "assistant",
+    content: data.reply,
+  });
+
+  addMessage("AI", data.reply);
+});
+
+/* ---------------- CHAT SUBMIT ---------------- */
+chatForm.addEventListener("submit", async (e) => {
   e.preventDefault();
 
-  chatWindow.innerHTML = "Connect to the OpenAI API for a response!";
+  const input = document.getElementById("chat-input");
+  const text = input.value;
+
+  chatHistory.push({
+    role: "user",
+    content: text,
+  });
+
+  const res = await fetch("YOUR_WORKER_URL", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      message: text,
+      history: chatHistory,
+    }),
+  });
+
+  const data = await res.json();
+
+  chatHistory.push({
+    role: "assistant",
+    content: data.reply,
+  });
+
+  addMessage("AI", data.reply);
+
+  input.value = "";
 });
+
+/* ---------------- INIT ---------------- */
+async function init() {
+  await loadProducts();
+
+  productsContainer.innerHTML = `
+    <div class="placeholder-message">
+      Select a category to view products
+    </div>
+  `;
+
+  loadSavedProducts();
+}
+
+init();
