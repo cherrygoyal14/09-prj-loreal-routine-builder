@@ -12,6 +12,18 @@ document.addEventListener("DOMContentLoaded", () => {
   const chatWindow = document.getElementById("chat-box");
   const generateBtn = document.getElementById("generate-btn");
 
+  console.log("categoryFilter:", document.getElementById("categoryFilter"));
+
+  if (!chatForm || !generateBtn || !productsContainer || !chatWindow) {
+    console.error("Missing elements:", {
+      chatForm,
+      generateBtn,
+      productsContainer,
+      chatWindow,
+    });
+    return;
+  }
+
   /* ---------------- SAFETY CHECK ---------------- */
   if (!generateBtn || !productsContainer || !chatWindow) {
     console.error("Missing required DOM elements");
